@@ -1,7 +1,9 @@
 import streamlit as st
 import random
 import pandas as pd
+import time
 
+# Set layout to wide for a better dashboard experience
 st.set_page_config(page_title="BullRun - Stock Simulator", page_icon="📈", layout="wide")
 
 # -----------------------------------------------------------------------------
@@ -13,6 +15,12 @@ if "current_user" not in st.session_state:
     st.session_state.current_user = None
 if "view_mode" not in st.session_state:
     st.session_state.view_mode = "auth"
+
+# NEW: State controllers for the Sidebar Authentication UI
+if "auth_mode" not in st.session_state:
+    st.session_state.auth_mode = "Login"
+if "signup_success" not in st.session_state:
+    st.session_state.signup_success = False
     
 if "selected_ticker" not in st.session_state:
     st.session_state.selected_ticker = "RELIANCE"
@@ -56,120 +64,112 @@ def update_market_prices():
         st.session_state.indices[index]["price"] = round(st.session_state.indices[index]["price"] * (1 + change), 2)
 
 # -----------------------------------------------------------------------------
-# 2. AUTHENTICATION & ONBOARDING (REDESIGNED)
+# 2. AUTHENTICATION & ONBOARDING (NEW UI)
 # -----------------------------------------------------------------------------
 def render_auth():
-    # Custom CSS for the colorful hero section
-    st.markdown("""
-        <style>
-        .hero-container {
-            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-            padding: 40px 30px;
-            border-radius: 15px;
-            color: white;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            margin-bottom: 20px;
-        }
-        .hero-title {
-            font-size: 3.5rem;
-            font-weight: 800;
-            margin-bottom: 5px;
-            background: -webkit-linear-gradient(#4facfe, #00f2fe);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .hero-subtitle {
-            font-size: 1.2rem;
-            color: #e0e0e0;
-            font-weight: 300;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # Split the screen: 55% for the Colorful Banner, 45% for the Auth Forms
-    col_hero, col_spacing, col_auth = st.columns([1.2, 0.1, 1])
-
-    # LEFT SIDE: Colorful Interactive Banner
-    with col_hero:
-        st.markdown("""
-            <div class='hero-container'>
-                <div class='hero-title'>BullRun</div>
-                <div class='hero-subtitle'>The Ultimate Virtual Stock Market Simulator</div>
-            </div>
-        """, unsafe_allow_html=True)
+    # Sidebar: Clean Navigation & Status tied to session_state
+    with st.sidebar:
+        st.markdown("## 🔐 Access Portal")
+        # Binding the radio button directly to session_state to allow automatic switching
+        st.radio("Select Action:", ["Login", "Sign Up"], key="auth_mode", label_visibility="collapsed")
         
-        st.markdown("### 🚀 Master the Markets Risk-Free")
-        st.info("**📊 Live Market Tracking:** Experience real-time price fluctuations on Nifty 50, Sensex, and top national equities.")
-        st.success("**💳 Integrated Virtual Wallet:** Link a simulated bank account, deposit funds, and manage capital securely with PIN authorization.")
-        st.warning("**🛡️ Zero Financial Risk:** Practice buying, selling, and portfolio management without risking real money.")
-
-    # RIGHT SIDE: Auth Toggle (Login / Signup)
-    with col_auth:
-        st.subheader("Access Portal")
-        
-        # Toggle Switch between Login and Sign Up
-        auth_mode = st.radio("Choose Action", ["Login", "Sign Up"], horizontal=True, label_visibility="collapsed")
         st.markdown("---")
-        
-        if auth_mode == "Login":
-            with st.form("login_form"):
-                st.markdown("#### 🔐 Secure Login")
-                login_user = st.text_input("User ID (Username / Admin ID)")
-                login_pass = st.text_input("Password", type="password")
+        st.markdown("### 📊 System Status")
+        st.success("🟢 Market Open")
+        st.info("📡 Live Tracking: Active")
+        st.caption("College Society Prototype v2.2")
+
+    # Main Area: Colorful Landing Header
+    st.markdown(
+        """
+        <div style='text-align: center; padding: 20px;'>
+            <h1 style='font-size: 3.5rem; margin-bottom: 0px;'>📈 <span style='color: #2E86C1;'>BullRun</span> Simulator</h1>
+            <p style='color: #808080; font-size: 1.2rem; margin-top: 5px;'>Institutional Grade Real-Time Virtual Trading Environment</p>
+        </div>
+        <hr>
+        """, 
+        unsafe_allow_html=True
+    )
+    
+    col1, col2, col3 = st.columns([1, 2, 1]) # Centering the forms
+    
+    with col2:
+        if st.session_state.auth_mode == "Login":
+            st.markdown("<h3 style='text-align: center;'>Existing User Login</h3>", unsafe_allow_html=True)
+            
+            # Show a success message if they were just redirected from a successful signup
+            if st.session_state.signup_success:
+                st.success("Account created successfully! Please login with your new credentials.")
+                st.session_state.signup_success = False # Reset the flag so it only shows once
                 
-                if st.form_submit_button("Authenticate Session", use_container_width=True, type="primary"):
-                    if login_user == "123456" and login_pass == "121212":
-                        st.session_state.current_user = "admin"
-                        st.session_state.view_mode = "admin"
-                        st.rerun()
-                    elif login_user in st.session_state.users_db and st.session_state.users_db[login_user]["password"] == login_pass:
-                        st.session_state.current_user = login_user
-                        st.session_state.view_mode = "dashboard"
-                        st.rerun()
-                    else:
-                        st.error("Authentication Failed: Invalid ID or Password.")
-                        
-        elif auth_mode == "Sign Up":
-            # Sign up is built without st.form so the bank dropdown can update the IFSC prefix in real time
-            st.markdown("#### 👤 Personal Details")
-            new_name = st.text_input("Full Legal Name")
-            new_email = st.text_input("Email Address")
-            new_user = st.text_input("Choose User ID")
-            new_pass = st.text_input("Create Password", type="password")
+            with st.container(border=True):
+                with st.form("login_form"):
+                    login_user = st.text_input("User ID (Username)", placeholder="Enter your registered ID")
+                    login_pass = st.text_input("Password", type="password", placeholder="••••••••")
+                    
+                    submit_btn = st.form_submit_button("Secure Login", use_container_width=True)
+                    
+                    if submit_btn:
+                        if login_user == "123456" and login_pass == "121212":
+                            st.session_state.current_user = "admin"
+                            st.session_state.view_mode = "admin"
+                            st.rerun()
+                        elif login_user in st.session_state.users_db and st.session_state.users_db[login_user]["password"] == login_pass:
+                            st.session_state.current_user = login_user
+                            st.session_state.view_mode = "dashboard"
+                            st.rerun()
+                        else:
+                            st.error("Authentication Failed: Invalid ID or Password.")
+                            
+        elif st.session_state.auth_mode == "Sign Up":
+            st.markdown("<h3 style='text-align: center;'>New Entity Registration</h3>", unsafe_allow_html=True)
             
-            st.markdown("#### 🏦 Banking & KYC Details")
-            pan_num = st.text_input("10-Digit PAN Card Number", max_chars=10)
-            
-            # Bank Selection placed exactly where banking details are required
-            sel_bank = st.selectbox("Select Core Bank", list(BANK_PREFIXES.keys()))
-            ifsc_prefix = BANK_PREFIXES[sel_bank]
-            
-            acc_num = st.text_input("Bank Account Number", type="password")
-            
-            # Dynamic IFSC display
-            st.markdown(f"**Bank IFSC Prefix:** `<span style='color:#00C853; font-weight:bold;'>{ifsc_prefix}</span>`", unsafe_allow_html=True)
-            ifsc_suffix = st.text_input("Enter remaining 6 digits of IFSC", max_chars=6)
-            
-            st.markdown("#### 🔒 Security Setup")
-            new_pin = st.text_input("Create 4-Digit Secure PIN (For Wallet/Trades)", type="password", max_chars=4)
-            
-            if st.button("Complete Registration", use_container_width=True, type="primary"):
-                if new_user == "123456" or new_user == "admin":
-                    st.error("Reserved Admin ID cannot be used.")
-                elif new_user in st.session_state.users_db:
-                    st.error("User ID already exists. Choose another.")
-                elif len(pan_num) != 10 or len(ifsc_suffix) != 6 or len(new_pin) != 4 or not new_pin.isdigit():
-                    st.error("Ensure PAN is 10 chars, IFSC suffix is 6 chars, and PIN is exactly 4 digits.")
-                elif new_name and new_user and new_pass and acc_num:
-                    st.session_state.users_db[new_user] = {
-                        "name": new_name, "email": new_email, "password": new_pass,
-                        "bank": sel_bank, "bank_acc": acc_num, "ifsc": f"{ifsc_prefix}{ifsc_suffix}",
-                        "wallet": 0.0, "pin": new_pin, "portfolio": {}, "pref": "Always Ask"
-                    }
-                    st.success("Verification complete. Switch to 'Login' above to enter the simulator.")
-                else:
-                    st.error("Please fill out all fields.")
+            with st.container(border=True):
+                st.markdown("#### 1. Identity Verification")
+                new_name = st.text_input("Full Legal Name")
+                new_email = st.text_input("Email Address")
+                pan_num = st.text_input("10-Digit PAN Card Number", max_chars=10)
+                
+                st.markdown("---")
+                st.markdown("#### 2. Banking Integration")
+                sel_bank = st.selectbox("Select Core Bank", list(BANK_PREFIXES.keys()))
+                ifsc_prefix = BANK_PREFIXES[sel_bank]
+                st.info(f"**Auto-Detected IFSC Prefix:** `{ifsc_prefix}`")
+                
+                with st.form("signup_form"):
+                    ifsc_suffix = st.text_input("Enter remaining 6 digits of IFSC", max_chars=6)
+                    acc_num = st.text_input("Bank Account Number", type="password")
+                    
+                    st.markdown("#### 3. Security Credentials")
+                    new_user = st.text_input("Choose User ID")
+                    
+                    # NEW: Password Verification fields
+                    new_pass = st.text_input("Create Password", type="password")
+                    confirm_pass = st.text_input("Verify Password", type="password")
+                    
+                    new_pin = st.text_input("Create 4-Digit Secure PIN (For Trading)", type="password", max_chars=4)
+                    
+                    if st.form_submit_button("Complete Registration", use_container_width=True):
+                        if new_user == "123456" or new_user == "admin":
+                            st.error("Reserved Admin ID cannot be used.")
+                        elif new_user in st.session_state.users_db:
+                            st.error("User ID already exists.")
+                        elif new_pass != confirm_pass:
+                            st.error("Registration Failed: Passwords do not match. Please verify your password.")
+                        elif len(pan_num) != 10 or len(ifsc_suffix) != 6 or len(new_pin) != 4:
+                            st.error("Ensure PAN is 10 chars, IFSC suffix is 6 chars, and PIN is 4 digits.")
+                        elif new_name and new_user and new_pass and acc_num:
+                            st.session_state.users_db[new_user] = {
+                                "name": new_name, "email": new_email, "password": new_pass,
+                                "bank": sel_bank, "bank_acc": acc_num, "ifsc": f"{ifsc_prefix}{ifsc_suffix}",
+                                "wallet": 0.0, "pin": new_pin, "portfolio": {}, "pref": "Always Ask"
+                            }
+                            # Set flags to trigger automatic redirect to Login view
+                            st.session_state.signup_success = True
+                            st.session_state.auth_mode = "Login"
+                            st.rerun()
+                        else:
+                            st.error("Please fill all fields.")
 
 # -----------------------------------------------------------------------------
 # 3. ADMIN PORTAL
@@ -178,12 +178,12 @@ def render_admin():
     st.title("⚙️ System Administrator Portal")
     col1, col2 = st.columns([8, 2])
     col1.subheader("Registered Entity Database")
-    if col2.button("Log Out Admin"):
+    if col2.button("Log Out Admin", use_container_width=True):
         st.session_state.current_user = None
         st.session_state.view_mode = "auth"
         st.rerun()
 
-    st.warning("Privacy Protocol Enforced: Individual holdings are securely hidden.")
+    st.warning("Privacy Protocol Enforced: Individual holdings are completely hidden from administrative view.")
     
     admin_data = []
     for uid, data in st.session_state.users_db.items():
@@ -197,7 +197,7 @@ def render_admin():
     if admin_data:
         st.table(pd.DataFrame(admin_data))
     else:
-        st.info("No users registered yet.")
+        st.info("No active users registered in the database yet.")
 
 # -----------------------------------------------------------------------------
 # 4. MAIN TRADING DASHBOARD
@@ -206,13 +206,13 @@ def render_dashboard():
     u_data = st.session_state.users_db[st.session_state.current_user]
     
     col_u, col_out, col_ref = st.columns([8, 1, 1.5])
-    col_u.markdown(f"👤 **{st.session_state.current_user}** | 🏦 `{u_data['bank']}` | IFSC: `{u_data['ifsc']}`")
+    col_u.markdown(f"👤 Active Profile: **{st.session_state.current_user}** | 🏦 Linked Node: `{u_data['bank']}` | IFSC: `{u_data['ifsc']}`")
     
-    if col_out.button("🚪 Logout"):
+    if col_out.button("🚪 Logout", use_container_width=True):
         st.session_state.current_user = None
         st.session_state.view_mode = "auth"
         st.rerun()
-    if col_ref.button("🔄 Sync Market"):
+    if col_ref.button("🔄 Sync Market", use_container_width=True):
         update_market_prices()
         st.rerun()
     st.markdown("---")
@@ -236,23 +236,23 @@ def render_dashboard():
         if w_act1.button("📥 Add Funds", use_container_width=True):
             if wallet_pin == u_data["pin"]:
                 st.session_state.users_db[st.session_state.current_user]["wallet"] += dep_amount
-                st.success("Funds added successfully.")
+                st.success("Transfer authenticated. Funds added securely.")
                 st.rerun()
             else:
-                st.error("Incorrect PIN.")
+                st.error("Authentication Failed: Incorrect PIN.")
         if w_act2.button("📤 Withdraw", use_container_width=True):
             if wallet_pin == u_data["pin"]:
                 if u_data["wallet"] >= dep_amount:
                     st.session_state.users_db[st.session_state.current_user]["wallet"] -= dep_amount
-                    st.success("Withdrawal processed.")
+                    st.success("Withdrawal processed to linked account.")
                     st.rerun()
                 else:
-                    st.error("Insufficient funds.")
+                    st.error("Overdraft Error: Insufficient wallet liquidity.")
             else:
-                st.error("Incorrect PIN.")
+                st.error("Authentication Failed: Incorrect PIN.")
     st.markdown("---")
 
-    m_col, t_col = st.columns([1.2, 0.8])
+    m_col, t_col = st.columns([1.3, 0.7])
     
     with m_col:
         st.subheader("📊 Live Market Board")
@@ -296,18 +296,18 @@ def render_dashboard():
             default_action_idx = action_list.index(st.session_state.trade_action)
             order_type = st.radio("Order Direction", action_list, index=default_action_idx, horizontal=True)
             
-            trade_qty = st.number_input("Quantity", min_value=1, step=1, value=1)
+            trade_qty = st.number_input("Share Quantity", min_value=1, step=1, value=1)
             
             current_unit_p = st.session_state.stocks[target_stock]["price"]
             total_est_cost = current_unit_p * trade_qty
-            st.markdown(f"**Total Capital:** `₹{total_est_cost:,.2f}`")
+            st.markdown(f"**Gross Settlement Capital:** `₹{total_est_cost:,.2f}`")
             
-            entered_pin = st.text_input("Authorization PIN", type="password", max_chars=4, key="t_pin")
+            entered_pin = st.text_input("Terminal Authorization PIN", type="password", max_chars=4, key="t_pin")
             
             btn_color = "primary" if order_type == "BUY" else "secondary"
             if st.button(f"Commit {order_type} Sequence", use_container_width=True, type=btn_color):
                 if entered_pin != u_data["pin"]:
-                    st.error("Execution Refused: Incorrect PIN.")
+                    st.error("Execution Refused: Incorrect authorization PIN.")
                 else:
                     if order_type == "BUY":
                         if u_data["wallet"] >= total_est_cost:
@@ -320,10 +320,10 @@ def render_dashboard():
                                 st.session_state.users_db[st.session_state.current_user]["portfolio"][target_stock] = {"qty": new_qty, "avg_price": round(new_avg, 2)}
                             else:
                                 st.session_state.users_db[st.session_state.current_user]["portfolio"][target_stock] = {"qty": trade_qty, "avg_price": current_unit_p}
-                            st.success(f"Acquired {trade_qty} blocks of {target_stock}.")
+                            st.success(f"Acquisition Locked: {trade_qty} blocks of {target_stock}.")
                             st.rerun()
                         else:
-                            st.error("Insufficient Wallet Balance.")
+                            st.error("Execution Terminated: Insufficient Wallet Balance.")
                     
                     elif order_type == "SELL":
                         if target_stock in u_data["portfolio"] and u_data["portfolio"][target_stock]["qty"] >= trade_qty:
@@ -331,16 +331,16 @@ def render_dashboard():
                             st.session_state.users_db[st.session_state.current_user]["wallet"] += total_est_cost
                             if st.session_state.users_db[st.session_state.current_user]["portfolio"][target_stock]["qty"] == 0:
                                 del st.session_state.users_db[st.session_state.current_user]["portfolio"][target_stock]
-                            st.success(f"Sold {trade_qty} {target_stock}. Added to Wallet.")
+                            st.success(f"Liquidation Confirmed: {trade_qty} {target_stock} sold. Proceeds added to Wallet.")
                             st.rerun()
                         else:
-                            st.error("Insufficient portfolio inventory.")
+                            st.error("Execution Terminated: Insufficient portfolio inventory.")
 
     st.markdown("---")
 
     st.subheader("💼 Active Asset Holdings Matrix")
     if not u_data["portfolio"]:
-        st.info("No active positions held in ledger.")
+        st.info("No active open trading parameters verified inside the ledger.")
     else:
         portfolio_rows = []
         total_pnl = 0.0
@@ -354,15 +354,15 @@ def render_dashboard():
             total_pnl += pnl
             
             portfolio_rows.append({
-                "Asset": ticker, "Qty": qty, "Avg Entry": f"₹{avg_p:,.2f}",
-                "Current Value": f"₹{current_value:,.2f}", "Unrealized PnL": f"₹{pnl:+,.2f}"
+                "Asset Symbol": ticker, "Quantity Held": qty, "Average Entry Price": f"₹{avg_p:,.2f}",
+                "Current Valuation": f"₹{current_value:,.2f}", "Unrealized Gain/Loss": f"₹{pnl:+,.2f}"
             })
             
         st.dataframe(pd.DataFrame(portfolio_rows), use_container_width=True, hide_index=True)
-        st.metric("Net Unrealized Portfolio Return", f"₹{total_pnl:+,.2f}")
+        st.metric("Aggregate Net Realized Return", f"₹{total_pnl:+,.2f}")
 
 # -----------------------------------------------------------------------------
-# 5. APP CONTROLLER
+# 5. CONTROLLER ORCHESTRATION
 # -----------------------------------------------------------------------------
 if st.session_state.view_mode == "auth":
     render_auth()
