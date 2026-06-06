@@ -5,7 +5,7 @@ import pandas as pd
 st.set_page_config(page_title="BullRun - Stock Simulator", page_icon="📈", layout="wide")
 
 # -----------------------------------------------------------------------------
-# 1. GLOBAL STATE INITIALIZATION (Simulated Database)
+# 1. GLOBAL STATE INITIALIZATION
 # -----------------------------------------------------------------------------
 if "users_db" not in st.session_state:
     st.session_state.users_db = {}
@@ -14,7 +14,6 @@ if "current_user" not in st.session_state:
 if "view_mode" not in st.session_state:
     st.session_state.view_mode = "auth"
     
-# State for interactive table buttons to auto-fill the trading terminal
 if "selected_ticker" not in st.session_state:
     st.session_state.selected_ticker = "RELIANCE"
 if "trade_action" not in st.session_state:
@@ -57,76 +56,120 @@ def update_market_prices():
         st.session_state.indices[index]["price"] = round(st.session_state.indices[index]["price"] * (1 + change), 2)
 
 # -----------------------------------------------------------------------------
-# 2. AUTHENTICATION & ONBOARDING
+# 2. AUTHENTICATION & ONBOARDING (REDESIGNED)
 # -----------------------------------------------------------------------------
 def render_auth():
-    st.title("🛡️ BullRun Institutional Trading")
-    st.markdown("---")
-    
-    col1, col2 = st.columns([1, 1])
-    
-    # Login Module (Handles both Users and Admin)
-    with col1:
-        st.subheader("Login to Environment")
-        with st.form("login_form"):
-            login_user = st.text_input("User ID (Username)")
-            login_pass = st.text_input("Password", type="password")
-            
-            if st.form_submit_button("Authenticate Session"):
-                # Admin Login Bypass Check
-                if login_user == "123456" and login_pass == "121212":
-                    st.session_state.current_user = "admin"
-                    st.session_state.view_mode = "admin"
-                    st.rerun()
-                # Standard User Check
-                elif login_user in st.session_state.users_db and st.session_state.users_db[login_user]["password"] == login_pass:
-                    st.session_state.current_user = login_user
-                    st.session_state.view_mode = "dashboard"
-                    st.rerun()
-                else:
-                    st.error("Authentication Failed: Invalid ID or Password.")
-                    
-    # Signup Module
-    with col2:
-        st.subheader("New Entity Registration (KYC)")
+    # Custom CSS for the colorful hero section
+    st.markdown("""
+        <style>
+        .hero-container {
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            padding: 40px 30px;
+            border-radius: 15px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 5px;
+            background: -webkit-linear-gradient(#4facfe, #00f2fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-subtitle {
+            font-size: 1.2rem;
+            color: #e0e0e0;
+            font-weight: 300;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Split the screen: 55% for the Colorful Banner, 45% for the Auth Forms
+    col_hero, col_spacing, col_auth = st.columns([1.2, 0.1, 1])
+
+    # LEFT SIDE: Colorful Interactive Banner
+    with col_hero:
+        st.markdown("""
+            <div class='hero-container'>
+                <div class='hero-title'>BullRun</div>
+                <div class='hero-subtitle'>The Ultimate Virtual Stock Market Simulator</div>
+            </div>
+        """, unsafe_allow_html=True)
         
-        # We put the bank selection OUTSIDE the form so it can dynamically update the IFSC display in real-time
-        sel_bank = st.selectbox("Select Core Bank", list(BANK_PREFIXES.keys()))
-        ifsc_prefix = BANK_PREFIXES[sel_bank]
+        st.markdown("### 🚀 Master the Markets Risk-Free")
+        st.info("**📊 Live Market Tracking:** Experience real-time price fluctuations on Nifty 50, Sensex, and top national equities.")
+        st.success("**💳 Integrated Virtual Wallet:** Link a simulated bank account, deposit funds, and manage capital securely with PIN authorization.")
+        st.warning("**🛡️ Zero Financial Risk:** Practice buying, selling, and portfolio management without risking real money.")
+
+    # RIGHT SIDE: Auth Toggle (Login / Signup)
+    with col_auth:
+        st.subheader("Access Portal")
         
-        with st.form("signup_form"):
+        # Toggle Switch between Login and Sign Up
+        auth_mode = st.radio("Choose Action", ["Login", "Sign Up"], horizontal=True, label_visibility="collapsed")
+        st.markdown("---")
+        
+        if auth_mode == "Login":
+            with st.form("login_form"):
+                st.markdown("#### 🔐 Secure Login")
+                login_user = st.text_input("User ID (Username / Admin ID)")
+                login_pass = st.text_input("Password", type="password")
+                
+                if st.form_submit_button("Authenticate Session", use_container_width=True, type="primary"):
+                    if login_user == "123456" and login_pass == "121212":
+                        st.session_state.current_user = "admin"
+                        st.session_state.view_mode = "admin"
+                        st.rerun()
+                    elif login_user in st.session_state.users_db and st.session_state.users_db[login_user]["password"] == login_pass:
+                        st.session_state.current_user = login_user
+                        st.session_state.view_mode = "dashboard"
+                        st.rerun()
+                    else:
+                        st.error("Authentication Failed: Invalid ID or Password.")
+                        
+        elif auth_mode == "Sign Up":
+            # Sign up is built without st.form so the bank dropdown can update the IFSC prefix in real time
+            st.markdown("#### 👤 Personal Details")
             new_name = st.text_input("Full Legal Name")
             new_email = st.text_input("Email Address")
             new_user = st.text_input("Choose User ID")
             new_pass = st.text_input("Create Password", type="password")
             
-            st.markdown("##### Identity & Banking Link")
+            st.markdown("#### 🏦 Banking & KYC Details")
             pan_num = st.text_input("10-Digit PAN Card Number", max_chars=10)
+            
+            # Bank Selection placed exactly where banking details are required
+            sel_bank = st.selectbox("Select Core Bank", list(BANK_PREFIXES.keys()))
+            ifsc_prefix = BANK_PREFIXES[sel_bank]
+            
             acc_num = st.text_input("Bank Account Number", type="password")
             
-            # Show dynamic prefix and ask for suffix
-            st.markdown(f"**Bank IFSC Prefix:** `{ifsc_prefix}`")
+            # Dynamic IFSC display
+            st.markdown(f"**Bank IFSC Prefix:** `<span style='color:#00C853; font-weight:bold;'>{ifsc_prefix}</span>`", unsafe_allow_html=True)
             ifsc_suffix = st.text_input("Enter remaining 6 digits of IFSC", max_chars=6)
             
-            st.markdown("##### Security Setup")
-            new_pin = st.text_input("Create 4-Digit Secure PIN", type="password", max_chars=4)
+            st.markdown("#### 🔒 Security Setup")
+            new_pin = st.text_input("Create 4-Digit Secure PIN (For Wallet/Trades)", type="password", max_chars=4)
             
-            if st.form_submit_button("Complete Registration"):
+            if st.button("Complete Registration", use_container_width=True, type="primary"):
                 if new_user == "123456" or new_user == "admin":
                     st.error("Reserved Admin ID cannot be used.")
                 elif new_user in st.session_state.users_db:
-                    st.error("User ID already exists.")
-                elif len(pan_num) != 10 or len(ifsc_suffix) != 6 or len(new_pin) != 4:
-                    st.error("Ensure PAN is 10 chars, IFSC suffix is 6 chars, and PIN is 4 digits.")
+                    st.error("User ID already exists. Choose another.")
+                elif len(pan_num) != 10 or len(ifsc_suffix) != 6 or len(new_pin) != 4 or not new_pin.isdigit():
+                    st.error("Ensure PAN is 10 chars, IFSC suffix is 6 chars, and PIN is exactly 4 digits.")
                 elif new_name and new_user and new_pass and acc_num:
                     st.session_state.users_db[new_user] = {
                         "name": new_name, "email": new_email, "password": new_pass,
                         "bank": sel_bank, "bank_acc": acc_num, "ifsc": f"{ifsc_prefix}{ifsc_suffix}",
                         "wallet": 0.0, "pin": new_pin, "portfolio": {}, "pref": "Always Ask"
                     }
-                    st.success("Verification complete. You may now login on the left.")
+                    st.success("Verification complete. Switch to 'Login' above to enter the simulator.")
                 else:
-                    st.error("Please fill all fields.")
+                    st.error("Please fill out all fields.")
 
 # -----------------------------------------------------------------------------
 # 3. ADMIN PORTAL
@@ -140,7 +183,7 @@ def render_admin():
         st.session_state.view_mode = "auth"
         st.rerun()
 
-    st.warning("Privacy Protocol Enforced: Individual holdings are hidden.")
+    st.warning("Privacy Protocol Enforced: Individual holdings are securely hidden.")
     
     admin_data = []
     for uid, data in st.session_state.users_db.items():
@@ -162,7 +205,6 @@ def render_admin():
 def render_dashboard():
     u_data = st.session_state.users_db[st.session_state.current_user]
     
-    # Top Bar
     col_u, col_out, col_ref = st.columns([8, 1, 1.5])
     col_u.markdown(f"👤 **{st.session_state.current_user}** | 🏦 `{u_data['bank']}` | IFSC: `{u_data['ifsc']}`")
     
@@ -175,7 +217,6 @@ def render_dashboard():
         st.rerun()
     st.markdown("---")
 
-    # Indices
     idx_cols = st.columns(len(st.session_state.indices))
     for i, (name, metrics) in enumerate(st.session_state.indices.items()):
         change_val = metrics["price"] - metrics["prev"]
@@ -183,7 +224,6 @@ def render_dashboard():
         idx_cols[i].metric(label=name, value=f"₹{metrics['price']:,}", delta=f"{change_val:+.2f} ({pct_change:+.2f}%)")
     st.markdown("---")
 
-    # Wallet
     st.subheader("💳 Secure Clearing Wallet")
     w_col1, w_col2, w_col3 = st.columns([3, 4, 4])
     w_col1.metric("Available Liquidity Reserve", f"₹{u_data['wallet']:,.2f}")
@@ -212,12 +252,10 @@ def render_dashboard():
                 st.error("Incorrect PIN.")
     st.markdown("---")
 
-    # Market Board & Execution Split
     m_col, t_col = st.columns([1.2, 0.8])
     
     with m_col:
         st.subheader("📊 Live Market Board")
-        # Creating an interactive table using Streamlit columns
         h1, h2, h3, h4, h5 = st.columns([2.5, 2, 2.5, 1.5, 1.5])
         h1.write("**Asset**")
         h2.write("**Price**")
@@ -237,7 +275,6 @@ def render_dashboard():
             arrow = "▲" if change >= 0 else "▼"
             c3.markdown(f"<span style='color:{color}; font-weight:bold;'>{arrow} {abs(change):.2f} ({pct:+.2f}%)</span>", unsafe_allow_html=True)
             
-            # Interactive Trade Buttons
             if c4.button("🟢 Buy", key=f"buy_{ticker}", use_container_width=True):
                 st.session_state.selected_ticker = ticker
                 st.session_state.trade_action = "BUY"
@@ -250,7 +287,6 @@ def render_dashboard():
     with t_col:
         st.subheader("⚡ Execution Terminal")
         with st.container(border=True):
-            # Auto-populates based on the button clicked in the Market Board
             stock_list = list(st.session_state.stocks.keys())
             default_stock_idx = stock_list.index(st.session_state.selected_ticker) if st.session_state.selected_ticker in stock_list else 0
             
@@ -302,7 +338,6 @@ def render_dashboard():
 
     st.markdown("---")
 
-    # Section 4: Holdings
     st.subheader("💼 Active Asset Holdings Matrix")
     if not u_data["portfolio"]:
         st.info("No active positions held in ledger.")
