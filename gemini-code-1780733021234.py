@@ -16,7 +16,7 @@ if "current_user" not in st.session_state:
 if "view_mode" not in st.session_state:
     st.session_state.view_mode = "auth"
 
-# NEW: State controllers for the Sidebar Authentication UI
+# State controllers for the Sidebar Authentication UI
 if "auth_mode" not in st.session_state:
     st.session_state.auth_mode = "Login"
 if "signup_success" not in st.session_state:
@@ -64,20 +64,18 @@ def update_market_prices():
         st.session_state.indices[index]["price"] = round(st.session_state.indices[index]["price"] * (1 + change), 2)
 
 # -----------------------------------------------------------------------------
-# 2. AUTHENTICATION & ONBOARDING (NEW UI)
+# 2. AUTHENTICATION & ONBOARDING
 # -----------------------------------------------------------------------------
 def render_auth():
     # Sidebar: Clean Navigation & Status tied to session_state
     with st.sidebar:
         st.markdown("## 🔐 Access Portal")
-        # Binding the radio button directly to session_state to allow automatic switching
         st.radio("Select Action:", ["Login", "Sign Up"], key="auth_mode", label_visibility="collapsed")
         
         st.markdown("---")
         st.markdown("### 📊 System Status")
         st.success("🟢 Market Open")
         st.info("📡 Live Tracking: Active")
-        st.caption("College Society Prototype v2.2")
 
     # Main Area: Colorful Landing Header
     st.markdown(
@@ -97,10 +95,9 @@ def render_auth():
         if st.session_state.auth_mode == "Login":
             st.markdown("<h3 style='text-align: center;'>Existing User Login</h3>", unsafe_allow_html=True)
             
-            # Show a success message if they were just redirected from a successful signup
             if st.session_state.signup_success:
                 st.success("Account created successfully! Please login with your new credentials.")
-                st.session_state.signup_success = False # Reset the flag so it only shows once
+                st.session_state.signup_success = False 
                 
             with st.container(border=True):
                 with st.form("login_form"):
@@ -120,6 +117,13 @@ def render_auth():
                             st.rerun()
                         else:
                             st.error("Authentication Failed: Invalid ID or Password.")
+            
+            # Quick Link to Sign Up
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; color: gray;'>New to BullRun Simulator?</p>", unsafe_allow_html=True)
+            if st.button("New User? Sign Up Here", use_container_width=True):
+                st.session_state.auth_mode = "Sign Up"
+                st.rerun()
                             
         elif st.session_state.auth_mode == "Sign Up":
             st.markdown("<h3 style='text-align: center;'>New Entity Registration</h3>", unsafe_allow_html=True)
@@ -143,7 +147,6 @@ def render_auth():
                     st.markdown("#### 3. Security Credentials")
                     new_user = st.text_input("Choose User ID")
                     
-                    # NEW: Password Verification fields
                     new_pass = st.text_input("Create Password", type="password")
                     confirm_pass = st.text_input("Verify Password", type="password")
                     
@@ -155,7 +158,7 @@ def render_auth():
                         elif new_user in st.session_state.users_db:
                             st.error("User ID already exists.")
                         elif new_pass != confirm_pass:
-                            st.error("Registration Failed: Passwords do not match. Please verify your password.")
+                            st.error("Registration Failed: Passwords do not match.")
                         elif len(pan_num) != 10 or len(ifsc_suffix) != 6 or len(new_pin) != 4:
                             st.error("Ensure PAN is 10 chars, IFSC suffix is 6 chars, and PIN is 4 digits.")
                         elif new_name and new_user and new_pass and acc_num:
@@ -164,12 +167,17 @@ def render_auth():
                                 "bank": sel_bank, "bank_acc": acc_num, "ifsc": f"{ifsc_prefix}{ifsc_suffix}",
                                 "wallet": 0.0, "pin": new_pin, "portfolio": {}, "pref": "Always Ask"
                             }
-                            # Set flags to trigger automatic redirect to Login view
                             st.session_state.signup_success = True
                             st.session_state.auth_mode = "Login"
                             st.rerun()
                         else:
                             st.error("Please fill all fields.")
+                            
+            # Quick Link back to Login
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Already have an account? Login Here", use_container_width=True):
+                st.session_state.auth_mode = "Login"
+                st.rerun()
 
 # -----------------------------------------------------------------------------
 # 3. ADMIN PORTAL
@@ -211,165 +219,4 @@ def render_dashboard():
     if col_out.button("🚪 Logout", use_container_width=True):
         st.session_state.current_user = None
         st.session_state.view_mode = "auth"
-        st.rerun()
-    if col_ref.button("🔄 Sync Market", use_container_width=True):
-        update_market_prices()
-        st.rerun()
-    st.markdown("---")
-
-    idx_cols = st.columns(len(st.session_state.indices))
-    for i, (name, metrics) in enumerate(st.session_state.indices.items()):
-        change_val = metrics["price"] - metrics["prev"]
-        pct_change = (change_val / metrics["prev"]) * 100
-        idx_cols[i].metric(label=name, value=f"₹{metrics['price']:,}", delta=f"{change_val:+.2f} ({pct_change:+.2f}%)")
-    st.markdown("---")
-
-    st.subheader("💳 Secure Clearing Wallet")
-    w_col1, w_col2, w_col3 = st.columns([3, 4, 4])
-    w_col1.metric("Available Liquidity Reserve", f"₹{u_data['wallet']:,.2f}")
-    with w_col2:
-        dep_amount = st.number_input("Transaction Volume (INR)", min_value=100.0, step=500.0, value=5000.0)
-        wallet_pin = st.text_input("Enter 4-Digit Wallet PIN", type="password", max_chars=4, key="w_pin")
-    with w_col3:
-        st.markdown("<br>", unsafe_allow_html=True)
-        w_act1, w_act2 = st.columns(2)
-        if w_act1.button("📥 Add Funds", use_container_width=True):
-            if wallet_pin == u_data["pin"]:
-                st.session_state.users_db[st.session_state.current_user]["wallet"] += dep_amount
-                st.success("Transfer authenticated. Funds added securely.")
-                st.rerun()
-            else:
-                st.error("Authentication Failed: Incorrect PIN.")
-        if w_act2.button("📤 Withdraw", use_container_width=True):
-            if wallet_pin == u_data["pin"]:
-                if u_data["wallet"] >= dep_amount:
-                    st.session_state.users_db[st.session_state.current_user]["wallet"] -= dep_amount
-                    st.success("Withdrawal processed to linked account.")
-                    st.rerun()
-                else:
-                    st.error("Overdraft Error: Insufficient wallet liquidity.")
-            else:
-                st.error("Authentication Failed: Incorrect PIN.")
-    st.markdown("---")
-
-    m_col, t_col = st.columns([1.3, 0.7])
-    
-    with m_col:
-        st.subheader("📊 Live Market Board")
-        h1, h2, h3, h4, h5 = st.columns([2.5, 2, 2.5, 1.5, 1.5])
-        h1.write("**Asset**")
-        h2.write("**Price**")
-        h3.write("**Daily Chg**")
-        h4.write("**Buy**")
-        h5.write("**Sell**")
-        st.markdown("<hr style='margin:0px; padding:0px;'>", unsafe_allow_html=True)
-        
-        for ticker, values in st.session_state.stocks.items():
-            c1, c2, c3, c4, c5 = st.columns([2.5, 2, 2.5, 1.5, 1.5])
-            c1.write(f"**{ticker}**")
-            c2.write(f"₹{values['price']:.2f}")
-            
-            change = values["price"] - values["prev"]
-            pct = (change / values["prev"]) * 100
-            color = "#00C853" if change >= 0 else "#D50000"
-            arrow = "▲" if change >= 0 else "▼"
-            c3.markdown(f"<span style='color:{color}; font-weight:bold;'>{arrow} {abs(change):.2f} ({pct:+.2f}%)</span>", unsafe_allow_html=True)
-            
-            if c4.button("🟢 Buy", key=f"buy_{ticker}", use_container_width=True):
-                st.session_state.selected_ticker = ticker
-                st.session_state.trade_action = "BUY"
-                st.rerun()
-            if c5.button("🔴 Sell", key=f"sell_{ticker}", use_container_width=True):
-                st.session_state.selected_ticker = ticker
-                st.session_state.trade_action = "SELL"
-                st.rerun()
-
-    with t_col:
-        st.subheader("⚡ Execution Terminal")
-        with st.container(border=True):
-            stock_list = list(st.session_state.stocks.keys())
-            default_stock_idx = stock_list.index(st.session_state.selected_ticker) if st.session_state.selected_ticker in stock_list else 0
-            
-            target_stock = st.selectbox("Select Asset", stock_list, index=default_stock_idx)
-            
-            action_list = ["BUY", "SELL"]
-            default_action_idx = action_list.index(st.session_state.trade_action)
-            order_type = st.radio("Order Direction", action_list, index=default_action_idx, horizontal=True)
-            
-            trade_qty = st.number_input("Share Quantity", min_value=1, step=1, value=1)
-            
-            current_unit_p = st.session_state.stocks[target_stock]["price"]
-            total_est_cost = current_unit_p * trade_qty
-            st.markdown(f"**Gross Settlement Capital:** `₹{total_est_cost:,.2f}`")
-            
-            entered_pin = st.text_input("Terminal Authorization PIN", type="password", max_chars=4, key="t_pin")
-            
-            btn_color = "primary" if order_type == "BUY" else "secondary"
-            if st.button(f"Commit {order_type} Sequence", use_container_width=True, type=btn_color):
-                if entered_pin != u_data["pin"]:
-                    st.error("Execution Refused: Incorrect authorization PIN.")
-                else:
-                    if order_type == "BUY":
-                        if u_data["wallet"] >= total_est_cost:
-                            st.session_state.users_db[st.session_state.current_user]["wallet"] -= total_est_cost
-                            if target_stock in u_data["portfolio"]:
-                                ex_qty = u_data["portfolio"][target_stock]["qty"]
-                                ex_avg = u_data["portfolio"][target_stock]["avg_price"]
-                                new_qty = ex_qty + trade_qty
-                                new_avg = ((ex_avg * ex_qty) + total_est_cost) / new_qty
-                                st.session_state.users_db[st.session_state.current_user]["portfolio"][target_stock] = {"qty": new_qty, "avg_price": round(new_avg, 2)}
-                            else:
-                                st.session_state.users_db[st.session_state.current_user]["portfolio"][target_stock] = {"qty": trade_qty, "avg_price": current_unit_p}
-                            st.success(f"Acquisition Locked: {trade_qty} blocks of {target_stock}.")
-                            st.rerun()
-                        else:
-                            st.error("Execution Terminated: Insufficient Wallet Balance.")
-                    
-                    elif order_type == "SELL":
-                        if target_stock in u_data["portfolio"] and u_data["portfolio"][target_stock]["qty"] >= trade_qty:
-                            st.session_state.users_db[st.session_state.current_user]["portfolio"][target_stock]["qty"] -= trade_qty
-                            st.session_state.users_db[st.session_state.current_user]["wallet"] += total_est_cost
-                            if st.session_state.users_db[st.session_state.current_user]["portfolio"][target_stock]["qty"] == 0:
-                                del st.session_state.users_db[st.session_state.current_user]["portfolio"][target_stock]
-                            st.success(f"Liquidation Confirmed: {trade_qty} {target_stock} sold. Proceeds added to Wallet.")
-                            st.rerun()
-                        else:
-                            st.error("Execution Terminated: Insufficient portfolio inventory.")
-
-    st.markdown("---")
-
-    st.subheader("💼 Active Asset Holdings Matrix")
-    if not u_data["portfolio"]:
-        st.info("No active open trading parameters verified inside the ledger.")
-    else:
-        portfolio_rows = []
-        total_pnl = 0.0
-        for ticker, data in u_data["portfolio"].items():
-            qty = data["qty"]
-            avg_p = data["avg_price"]
-            current_p = st.session_state.stocks[ticker]["price"]
-            invested_cap = qty * avg_p
-            current_value = qty * current_p
-            pnl = current_value - invested_cap
-            total_pnl += pnl
-            
-            portfolio_rows.append({
-                "Asset Symbol": ticker, "Quantity Held": qty, "Average Entry Price": f"₹{avg_p:,.2f}",
-                "Current Valuation": f"₹{current_value:,.2f}", "Unrealized Gain/Loss": f"₹{pnl:+,.2f}"
-            })
-            
-        st.dataframe(pd.DataFrame(portfolio_rows), use_container_width=True, hide_index=True)
-        st.metric("Aggregate Net Realized Return", f"₹{total_pnl:+,.2f}")
-
-# -----------------------------------------------------------------------------
-# 5. CONTROLLER ORCHESTRATION
-# -----------------------------------------------------------------------------
-if st.session_state.view_mode == "auth":
-    render_auth()
-elif st.session_state.view_mode == "dashboard" and st.session_state.current_user:
-    render_dashboard()
-elif st.session_state.view_mode == "admin" and st.session_state.current_user == "admin":
-    render_admin()
-else:
-    st.session_state.view_mode = "auth"
-    st.rerun()
+        st
